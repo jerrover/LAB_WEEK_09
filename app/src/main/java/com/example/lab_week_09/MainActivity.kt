@@ -10,10 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-// import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-// import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
@@ -24,27 +22,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-// import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-// Impor Navigasi
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-// Impor dari Elements.kt
 import com.example.lab_week_09.ui.theme.LAB_WEEK_09Theme
 import com.example.lab_week_09.ui.theme.OnBackgroundItemText
 import com.example.lab_week_09.ui.theme.OnBackgroundTitleText
 import com.example.lab_week_09.ui.theme.PrimaryTextButton
+// Impor baru untuk Solusi Bonus Moshi
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             LAB_WEEK_09Theme {
-                //Surface diperbarui sesuai Step 5
                 Surface(
                     //We use Modifier.fillMaxSize() to make the surface fill the whole
                     // screen
@@ -69,7 +67,6 @@ data class Student(
     var name: String
 )
 
-//Composable App baru sesuai Step 4
 //Here, we create a composable function called App
 //This will be the root composable of the app
 @Composable
@@ -117,8 +114,6 @@ fun App(navController: NavHostController) {
     }
 }
 
-
-//Home Composable diperbarui sesuai Step 6
 @Composable
 fun Home(
     navigateFromHomeToResult: (String) -> Unit
@@ -142,25 +137,30 @@ fun Home(
     //This is so that we can get the value of the input field
     var inputField = remember { mutableStateOf(Student("")) }
 
-    //Pemanggilan HomeContent diperbarui sesuai Step 8
     HomeContent(
         listData,
-        inputField.value, // Modul [cite: 638] memiliki typo 'inputField', seharusnya 'inputField.value'
-        { input -> inputField.value = inputField.value.copy(input) }, // Modul [cite: 639] memiliki typo
-        // Blok onClickButton diperbarui sesuai [cite: 640-643]
+        inputField.value,
+        { input -> inputField.value = inputField.value.copy(input) },
+
+
         {
-            listData.add(inputField.value)
-            // Cek 'isNotBlank' dari Commit 2 masih ada di sini
             if (inputField.value.name.isNotBlank()) {
+                listData.add(inputField.value)
+                inputField.value = inputField.value.copy("")
             }
-            inputField.value = inputField.value.copy("") // Sesuai [cite: 642]
         },
-        // Parameter navigasi baru dari [cite: 645]
-        { navigateFromHomeToResult(listData.toList().toString()) }
+
+        {
+            val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+            val listType = Types.newParameterizedType(List::class.java, Student::class.java)
+            val jsonAdapter = moshi.adapter<List<Student>>(listType)
+            val jsonString = jsonAdapter.toJson(listData.toList())
+
+            navigateFromHomeToResult(jsonString)
+        }
     )
 }
 
-//HomeContent Composable diperbarui sesuai Step 7
 @Composable
 fun HomeContent(
     listData: SnapshotStateList<Student>,
@@ -169,7 +169,6 @@ fun HomeContent(
     onButtonClick: () -> Unit,
     navigateFromHomeToResult: () -> Unit
 ) {
-    //LazyColumn diperbarui sesuai Step 9
     LazyColumn {
         item {
             Column(
@@ -215,20 +214,44 @@ fun HomeContent(
     }
 }
 
-//Composable ResultContent baru sesuai Step 10
 //Here, we create a composable function called ResultContent
 //ResultContent accepts a String parameter called ListData from the Home
 //composable
 //then displays the value of ListData to the screen
+
+// SOLUSI UNTUK ASSIGNMENT 2 (BONUS):
+// Diperbarui untuk parse JSON dan menggunakan LazyColumn
 @Composable
-fun ResultContent(listData: String) {
-    Column (
+fun ResultContent(listData: String) { // listData sekarang adalah JSON String
+
+    // Parse JSON String kembali ke List<Student>
+    val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+    val listType = Types.newParameterizedType(List::class.java, Student::class.java)
+    val jsonAdapter = moshi.adapter<List<Student>>(listType)
+
+    val studentsList: List<Student> = try {
+        jsonAdapter.fromJson(listData) ?: emptyList()
+    } catch (e: Exception) {
+        emptyList() // Handle jika ada error parsing
+    }
+
+    // Tampilkan menggunakan LazyColumn sesuai permintaan
+    LazyColumn (
         modifier = Modifier
             .padding(vertical = 4.dp)
             .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        //Here, we call the OnBackgroundItemText UI Element
-        OnBackgroundItemText(text = listData)
+        items(studentsList) { student ->
+            Column(
+                modifier = Modifier
+                    .padding(vertical = 4.dp)
+                    .fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                //Here, we call the OnBackgroundItemText UI Element
+                OnBackgroundItemText(text = student.name)
+            }
+        }
     }
 }
